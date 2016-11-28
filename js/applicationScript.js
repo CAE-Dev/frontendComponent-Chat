@@ -30,7 +30,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-var client;
+var client, chatContent;
 
 var init = function() {
   
@@ -39,12 +39,54 @@ var init = function() {
     console.log(intent);
   };
   
-  client = new Las2peerWidgetLibrary("", iwcCallback);
-  
+  Y({
+    db: {
+      name: 'memory'
+    },
+    connector: {
+      name: 'websockets-client',
+      room: 'cae-room'
+    },
+    sourceDir: 'http://y-js.org/bower_components',
+    share: {
+      chat: 'Array'
+    }
+  }).then(function (y) {
+    window.yChat = y
+    
+    // Insert the initial content
+    chatContent = y.share.chat;
+    chatContent.toArray().forEach(appendMessage)
+    cleanupChat()
+    //chatContent.delete(0,chatContent.length)
+    // whenever content changes, make sure to reflect the changes in the DOM
+    chatContent.observe(function (event) {
+      console.log(event)
+      if(event.length == 1){
+        if (event[0].type === 'insert') {
+          //for (var i = 0; i < event[0].length; i++) {
+            console.log(event[0].value)
+            appendMessage(event[0].value, event[0].index )
+          //}
+        } else if (event[0].type === 'delete') {
+          //for (var i = 0; i < event[0].length; i++) {
+            chat.children[event[0].index].remove()
+          //}
+        }// concurrent insertions may result in a history > 7, so cleanup here
+      cleanupChat()
+      }
+      else{
+        $("#chat").html('')
+      }
+
+      
+    })
+  })
 
   $('#sendButton').on('click', function() {
     sendFunction();
   })
+
   $('#clearButton').on('click', function() {
     clearFunction();
   })
@@ -53,14 +95,48 @@ var init = function() {
 
 // sendFunction
 var sendFunction = function(){
+   // the form is submitted
+      var message = {
+        username: $('#name').val(),
+        message: $('#message').val()
+      }
+      if (message.username.length > 0 && message.message.length > 0) {
+        if (chatContent.length > 6) {
+          // If we are goint to insert the 8th element, make sure to delete first.
+          chatContent.delete(0)
+        }
+        // Here we insert a message in the shared chat type.
+        // This will call the observe function (see line 40)
+        // and reflect the change in the DOM
+        chatContent.push([message])
+        //console.log(chatContent.toArray())
+        $('#message').val('');
+      }
 }
-
 
 // clearFunction
 var clearFunction = function(){
+  chatContent.delete(0,chatContent.toArray().length)
 }
-
 
 $(document).ready(function() {
   init();
 });
+
+// This functions inserts a message at the specified position in the DOM
+function appendMessage(message, position) { 
+  var p = document.createElement('p')
+  var uname = document.createElement('span')
+  uname.appendChild(document.createTextNode(" " + message.username + ": "))
+  p.appendChild(uname)
+  p.appendChild(document.createTextNode(message.message))
+  document.querySelector('#chat').insertBefore(p, chat.children[position] || null)
+}
+// This function makes sure that only 7 messages exist in the chat history.
+// The rest is deleted
+function cleanupChat () {
+  var len;
+  while ((len = chatContent.length) > 7) {
+    chatContent.delete(0)        
+  }
+}
