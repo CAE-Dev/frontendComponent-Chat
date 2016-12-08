@@ -45,7 +45,7 @@ var init = function() {
     },
     connector: {
       name: 'websockets-client',
-      room: 'cae-room'
+      room: 'cae-chat'
     },
     sourceDir: 'http://y-js.org/bower_components',
     share: {
